@@ -38,12 +38,11 @@ If you swap in a newer version of the app, export a backup first and import it a
 ## Good to know
 
 - QWERTY only for now.
-- Everything is lowercase, so no Shift or capital letters yet.
 - Fonts load from Google Fonts. Offline, it falls back to your system fonts and works the same.
 
 ## Contributing
 
-Pull requests and ideas are welcome, but since I'm not a programmer, I may not be able to review code or answer technical questions. The whole app lives in one file (markup, then styles, then script), so it's easy to dig into and fork.
+The whole app lives in one file (markup, then styles, then script), so it's easy to dig into and fork. I do not know if I will even manage this repo.
 
 ## License
 
