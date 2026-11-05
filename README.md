@@ -9,6 +9,7 @@ I made this for my own personal use, and I don't know how to program. The whole 
 ## What it does
 
 - **Pick your keys.** Click keys on the on-screen QWERTY keyboard, one at a time or a whole row at once (number, top, home, bottom). You only get words made from the keys you've picked.
+- **Capital letters.** Tick "Include capital letters" next to the rest setting and some words will start with a capital, with the occasional short word in all caps. The hint tells you which Shift key to use (the one on the opposite hand).
 - **Real words when possible.** There are about 2,900 built-in words. If your keys can't make many real words (say, just `a s d f`), it mixes in practice patterns and tells you how many real words it found.
 - **Advanced words.** Around 530 long, awkward words like "rhythm", "queue" and "mischievous". They unlock once all 26 letter keys are on.
 - **Rests for your fingers.** Every 3, 5, 8 or 10 minutes of actual typing, you get a short rest with a few stretches, and a longer break every so often. The clock only runs while you're typing.
@@ -38,11 +39,14 @@ If you swap in a newer version of the app, export a backup first and import it a
 ## Good to know
 
 - QWERTY only for now.
+- It checks that you typed the right character, but not which Shift key you held. The hint shows the proper one.
+- Shifted symbols like `!` and `?` aren't added yet, just capital letters.
+- Caps Lock shows up as a warning because it makes every letter count as a mistake.
 - Fonts load from Google Fonts. Offline, it falls back to your system fonts and works the same.
 
 ## Contributing
 
-The whole app lives in one file (markup, then styles, then script), so it's easy to dig into and fork. I do not know if I will even manage this repo.
+The whole app lives in one file (markup, then styles, then script), so it's easy to dig into and fork. I do not know if I will come back to this repo.
 
 ## License
 
