@@ -1,0 +1,655 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Keyed In</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: one calm column. Stats strip, a large word stage, then the keyboard that doubles as the "keys I've learned" picker. */
+:root{
+  --bg:#E8ECEF; --surface:#F6F8F9; --surface-2:#DCE3E8; --line:#C6CFD6;
+  --fg:#17212B; --fg-2:#4B5967; --fg-3:#7B8794;
+  --accent:#0B7285; --accent-ink:#FFFFFF; --accent-soft:#CBE8EC;
+  --err:#B3321F; --err-soft:#F6D6CF; --ok:#1E7B46; --fix:#8A6A00; --fix-soft:#F4E3A1; --fix-fg:#5E4800;
+  --scrim:rgba(232,236,239,.96);
+  --ui:'Instrument Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0F1418; --surface:#171E24; --surface-2:#222B33; --line:#2C3741;
+  --fg:#E5EBEF; --fg-2:#A3B0BB; --fg-3:#6E7C89;
+  --accent:#5BC4D3; --accent-ink:#06222A; --accent-soft:#17414A;
+  --err:#FF8F7A; --err-soft:#4A2620; --ok:#6BCB8F; --fix:#E7C547; --fix-soft:#4D4012; --fix-fg:#F5D860;
+  --scrim:rgba(15,20,24,.96); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F1418; --surface:#171E24; --surface-2:#222B33; --line:#2C3741;
+  --fg:#E5EBEF; --fg-2:#A3B0BB; --fg-3:#6E7C89;
+  --accent:#5BC4D3; --accent-ink:#06222A; --accent-soft:#17414A;
+  --err:#FF8F7A; --err-soft:#4A2620; --ok:#6BCB8F; --fix:#E7C547; --fix-soft:#4D4012; --fix-fg:#F5D860;
+  --scrim:rgba(15,20,24,.96); color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--ui);margin:0;
+  padding-block:20px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+button,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* top strip */
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 24px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:1.15rem;letter-spacing:-.01em}
+.cap{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:7px;background:var(--surface);border:1px solid var(--line);border-bottom-width:3px;font:700 .95rem var(--mono);color:var(--accent)}
+.stats{display:flex;flex-wrap:wrap;gap:6px 28px}
+.stat{display:flex;flex-direction:column;min-width:64px}
+.stat b{font:500 1.35rem/1.2 var(--mono);font-variant-numeric:tabular-nums}
+.stat span{font-size:.7rem;text-transform:uppercase;letter-spacing:.09em;color:var(--fg-2)}
+
+/* stage */
+.stage{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:clamp(18px,3vw,32px);display:flex;flex-direction:column;gap:20px;min-height:290px}
+.words{font:400 clamp(1.3rem,3.1vw,1.85rem)/2.15 var(--mono);display:flex;flex-wrap:wrap;gap:0 1.1ch;color:var(--fg-2);user-select:none;min-width:0}
+.w{white-space:nowrap}
+.w.done{color:var(--fg-3)}
+.w.miss{color:var(--fg-3);text-decoration:underline wavy var(--err);text-decoration-thickness:1px;text-underline-offset:6px}
+.w.cur{color:var(--fg-2)}
+.c.ok{color:var(--fg);background:color-mix(in srgb,var(--accent) 14%,transparent);border-radius:3px}
+.c.bad{color:var(--err);background:var(--err-soft);border-radius:3px}
+.c.fix{color:var(--fix-fg);background:var(--fix-soft);border-radius:3px}
+.caret{display:inline-block;width:2px;height:1.15em;margin:0 -1px;vertical-align:-.2em;background:var(--accent);animation:blink 1.1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.hintrow{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 20px;margin-top:auto;padding-top:14px;border-top:1px solid var(--line);font-size:.88rem;color:var(--fg-2)}
+.hintrow strong{color:var(--fg);font-weight:600}
+.hintrow kbd{font:500 .8rem var(--mono);background:var(--surface-2);border-radius:4px;padding:1px 6px}
+.empty{margin:auto;text-align:center;color:var(--fg-2);max-width:36ch}
+.empty h2{margin:0 0 6px;font-size:1.1rem;color:var(--fg)}
+
+/* keys panel */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:clamp(16px,2.6vw,26px);display:flex;flex-direction:column;gap:16px}
+.phead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:4px 20px}
+.phead h2{margin:0;font-size:1.05rem}
+.note{font-size:.85rem;color:var(--fg-2);margin:0;min-width:0}
+.kb{display:flex;flex-direction:column;gap:7px}
+.krow{display:grid;grid-template-columns:9rem minmax(0,1fr);gap:10px;align-items:center}
+.rowbtn{display:flex;justify-content:space-between;gap:6px;background:none;border:1px solid var(--line);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:.82rem;color:var(--fg-2);text-align:left}
+.rowbtn:hover{border-color:var(--accent);color:var(--fg)}
+.rowbtn i{font:normal 500 .78rem var(--mono);font-variant-numeric:tabular-nums}
+.keys{display:grid;gap:6px;min-width:0}
+.key{position:relative;height:clamp(38px,6vw,48px);padding:0;border-radius:8px;border:1px solid var(--line);border-bottom-width:3px;background:var(--surface-2);color:var(--fg-3);font:500 clamp(.8rem,1.6vw,1rem) var(--mono);text-transform:uppercase;cursor:pointer;transition:transform .06s,background .12s}
+.key.on{background:var(--accent-soft);border-color:var(--accent);color:var(--fg)}
+.key.next{outline:2px solid var(--accent);outline-offset:2px;box-shadow:0 0 0 5px color-mix(in srgb,var(--accent) 22%,transparent)}
+.key.press{transform:translateY(2px);border-bottom-width:1px;background:var(--accent);color:var(--accent-ink)}
+.key.oops{transform:translateY(2px);border-bottom-width:1px;background:var(--err-soft);border-color:var(--err);color:var(--err)}
+.key.weak::after{content:"";position:absolute;top:3px;right:3px;width:9px;height:9px;border-radius:50%;background:var(--err);border:1.5px solid var(--surface)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:.8rem;color:var(--fg-2)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:12px;height:12px;border-radius:3px;border:1px solid var(--line);background:var(--surface-2)}
+.sw.on{background:var(--accent-soft);border-color:var(--accent)}
+.sw.weak{background:var(--err);border-color:var(--err);border-radius:50%;width:8px;height:8px}
+
+/* options */
+.opts{display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;gap:10px 26px;font-size:.9rem}
+.opts label{display:inline-flex;align-items:center;gap:8px;cursor:pointer}
+.opts select{background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:5px 8px}
+.opts input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
+.btn{border:1px solid var(--line);background:var(--surface-2);border-radius:8px;padding:6px 12px;cursor:pointer;font-size:.88rem}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600;padding:9px 18px}
+.btn.primary:disabled{opacity:.45;cursor:default}
+.btn.ghost{background:none;border-color:transparent;color:var(--fg-2);text-decoration:underline}
+.spacer{flex:1}
+
+.opts label.off{opacity:.55;cursor:not-allowed}
+.banner{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;background:var(--fix-soft);color:var(--fix-fg);border-radius:10px;padding:10px 14px;font-size:.9rem}
+.banner[hidden]{display:none}
+.btnrow{display:flex;flex-wrap:wrap;gap:10px}
+/* rest overlay */
+.rest{position:fixed;inset:0;z-index:50;background:var(--scrim);display:grid;place-items:center;overflow-y:auto;
+  padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.rest[hidden]{display:none}
+.rest-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:clamp(20px,4vw,36px);width:min(520px,100%);display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center}
+.eyebrow{margin:0;font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:var(--accent);font-weight:600}
+.rest-card h2{margin:0;font-size:1.5rem;text-wrap:balance}
+.ring{position:relative;width:132px;height:132px}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:7}
+.ring .track{stroke:var(--surface-2)}
+.ring .arc{stroke:var(--accent);stroke-linecap:round;transition:stroke-dashoffset 1s linear}
+.ring span{position:absolute;inset:0;display:grid;place-items:center;font:500 1.6rem var(--mono);font-variant-numeric:tabular-nums}
+.steps{margin:0;padding-left:1.3em;text-align:left;color:var(--fg-2);display:flex;flex-direction:column;gap:6px;font-size:.95rem}
+.steps li::marker{color:var(--accent);font-weight:600}
+.rest-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;align-items:center}
+
+@media (max-width:640px){
+  .krow{grid-template-columns:1fr;gap:5px}
+  .rowbtn{width:max-content;gap:12px;padding:3px 10px}
+  .kb{gap:12px}
+}
+@media (prefers-reduced-motion:reduce){.caret{animation:none}.ring .arc{transition:none}.key{transition:none}}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><span class="cap" aria-hidden="true">K</span>Keyed In</div>
+    <div class="stats" aria-label="Session stats">
+      <div class="stat"><b id="sWpm">0</b><span>Words/min</span></div>
+      <div class="stat"><b id="sAcc">100%</b><span>Accuracy</span></div>
+      <div class="stat"><b id="sWords">0</b><span>Words</span></div>
+      <div class="stat"><b id="sRest">5:00</b><span>Rest in</span></div>
+    </div>
+  </header>
+
+  <div class="banner" id="dataBanner" hidden><span>Click to keep saving your progress into this file.</span><button class="btn" id="reconnect" type="button">Reconnect</button></div>
+
+  <section class="stage" id="stage" aria-label="Typing practice">
+    <div class="words" id="words"></div>
+    <div class="hintrow">
+      <span id="hint">Start typing. The clock begins with your first key.</span>
+      <span><kbd>Space</kbd> next word &nbsp; <kbd>Backspace</kbd> fix a mistake</span>
+    </div>
+  </section>
+
+  <section class="panel" aria-label="Keys I have learned">
+    <div class="phead">
+      <h2>Keys I've learned</h2>
+      <p class="note" id="poolNote"></p>
+    </div>
+    <div class="kb" id="kb"></div>
+    <div class="legend">
+      <span><i class="sw on"></i>Practicing</span>
+      <span><i class="sw"></i>Not learned yet</span>
+      <span><i class="sw weak"></i>Missed often</span>
+      <span id="weakNote"></span>
+    </div>
+    <p class="note">Click a key to add or remove it. Click a row name to add or clear the whole row. Practice words only use the keys you've marked.</p>
+  </section>
+
+  <section class="panel opts" aria-label="Options">
+    <label for="optBreak">Rest every
+      <select id="optBreak">
+        <option value="3">3 min</option>
+        <option value="5" selected>5 min</option>
+        <option value="8">8 min</option>
+        <option value="10">10 min</option>
+      </select>
+    </label>
+    <label for="optGuide"><input type="checkbox" id="optGuide" checked>Show next key and finger</label>
+    <label for="optWeak"><input type="checkbox" id="optWeak" checked>Give missed keys more practice</label>
+    <label for="optAdv" id="advLabel"><input type="checkbox" id="optAdv">Advanced words <span class="note" id="advNote"></span></label>
+    <span class="spacer"></span>
+    <button class="btn" id="resetStats" type="button">Reset my stats</button>
+    <p class="note" id="breakNote" style="flex-basis:100%"></p>
+  </section>
+
+  <section class="panel" aria-label="Your data">
+    <div class="phead"><h2>Your progress</h2><p class="note" id="dataStatus"></p></div>
+    <div class="btnrow">
+      <button class="btn" id="selfSave" type="button" hidden>Save into this file</button>
+      <button class="btn" id="expBtn" type="button">Export backup</button>
+      <button class="btn" id="impBtn" type="button">Import backup</button>
+      <input type="file" id="impIn" accept=".json,application/json" hidden>
+    </div>
+    <p class="note">Your keys, settings and stats are saved automatically in this browser. Browsers sometimes clear that (private windows, Safari, privacy settings), so in Chrome or Edge you can also click <b>Save into this file</b> once, pick this HTML file, and your progress is written into the file itself after that. The backup buttons are optional and make a small <b>Keyed_in_data.json</b>.</p>
+  </section>
+</div>
+
+<div id="rest" class="rest" role="dialog" aria-modal="true" aria-labelledby="restTitle" hidden>
+  <div class="rest-card">
+    <p class="eyebrow" id="restKind">Short rest</p>
+    <h2 id="restTitle">Hands off the keys</h2>
+    <div class="ring">
+      <svg viewBox="0 0 120 120" aria-hidden="true"><circle class="track" cx="60" cy="60" r="52"/><circle class="arc" id="ringArc" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="0"/></svg>
+      <span id="restTime">0:30</span>
+    </div>
+    <ol class="steps" id="restSteps"></ol>
+    <div class="rest-actions">
+      <button class="btn primary" id="restGo" type="button" disabled>Back to typing</button>
+      <button class="btn ghost" id="restSkip" type="button">Skip rest</button>
+    </div>
+  </div>
+</div>
+
+<script type="application/json" id="keyedin-data">null</script>
+<script>
+(function(){
+'use strict';
+const $=s=>document.querySelector(s);
+function load(k,d){try{const v=localStorage.getItem('keyedin.'+k);return v?JSON.parse(v):d}catch(e){return d}}
+function save(k,v){try{localStorage.setItem('keyedin.'+k,JSON.stringify(v))}catch(e){}}
+
+/* ---------- word list (common English, lowercase) ---------- */
+const EXTRA=`ally ably acre ache aids ammo amid arch aura avid axis bade bail bait bake bald bard barn bass bead beam bean beef beep bend bent bias bite blah blew blob boil bolt bomb bond boom boot bore brag brat brew buck bunk buoy cage calf cape chin chop chow chum cite clan claw clue coax coil coin cone cozy crab cram crow cube cure curl cute dame damp dare dart daze deft dent dice dime dine dire dive dock dome dote dove drab drag drip duel dune dupe earl ebb echo edit emit envy epic exam fang fern feud fizz flap flax flee flex foam foil fond fork fowl fray fret fume fuse gale gape garb gaze germ gibe gist glee glen glib glum glue gnat gnaw goat gore gram grub gust hack hail halo harp haze heap heed heel hemp herb hike hoax hood hook hoop hose hush hymn icon idle inky jerk jest jolt junk keel kelp knit knob knot lair lard lark lash lava leak leer lilt limb limp lobe loft loin loom loop lore lure lush lyre mace mane maze meek mesh mink mire moat mold molt monk moss moth mule mute nape nook numb oath ogre onus ooze opal pact pang pelt perk pest pith plea plod plow ploy plum plug pomp prod prom prow pulp pyre quay quiz rant rasp rave reap reed reef rend rind romp rout rump rune rung ruse rust sage scab scan scar scum shed shin shun silt sine slab slew slog slug smug snag snub soak sofa sown spar sped spew spud spur stab stag stew stub stud suds sway swan swat tact tamp tang taut thaw thud tick tilt toad toil tomb tome tuft tusk twig undo vale veer vend vial vile vole wade waft wane wart wasp wavy waxy weld welt whet whim whip wick wily wink wisp wren yawn yeti yoke yolk zeal zest
+absent accept access across action active actual advice affect afraid agency almost always amount animal annual anyone appeal arrive artist attack attend author autumn avenue backup banner barely basket battle beauty bedroom beside bigger border bother bottom branch breath breeze bundle burden butter cactus candle canvas carbon castle casual center cereal chance chapter cheese cherry chosen cinema client closet clothes cluster cobweb cotton county cousin cradle crisis crystal curious darling debate defeat defend deliver desert detect diamond dispute divide domain donkey dragon drawer driven eagle eleven embark employ encore energy engage erase evenly exceed exotic expand expert export extend fabric factor fairly fallen famous farmer fasten fierce filter firmly flavor fluffy folder fossil freeze frozen gadget galaxy gamble garage garlic gently ginger glance glitch gossip govern gravel grumpy guilty hammer hamper hassle hazard header hearth heaven helmet hockey humble hunger hurdle impose inform injury insect invent invite jigsaw jingle jostle kettle kidney lagoon lantern latest lavish lazily legend lender lizard locket lumber magnet maiden mallet marble margin marvel meadow melody mingle misery mitten mutual muzzle nasty nephew nickel noodle nutmeg oyster paddle palace parade parcel pebble pepper pickle pillow plenty pledge plunge polish ponder portal poster pounce puddle puzzle quarry rattle reckon refuge regret remedy ripple rooster rotten sailor saddle salute scatter scarlet shovel shuffle sibling simmer slumber snappy snuggle spider splash sponge stairs sticky stitch stumble sunrise swivel tackle tangle tender thimble thrive thunder tickle timber toddler tumble turkey
+adjust ability absence academy account achieve acquire address advance adviser against airport alcohol ancient animals anxious anybody applied approve arrange article ashamed athlete attempt attract balance bargain barrier battery bedtime believe benefit besides billion biology blanket blossom bracket brother cabinet capital captain careful carried catalog caution ceiling century certain chamber channel chicken chimney circuit climate cluster collect college combine comfort command company compare compete complex concern conduct confirm connect consist contact contain content contest context control convert cooking correct counter country courage cricket crystal culture cushion dancing darkness daughter dazzling decline default defense deliver density deposit desktop develop digital discuss display distant divided doorway drawing dressing dynamic eastern economy edition elegant element emotion enclose endless enforce enhance enormous episode evening evident examine example excited exclude exhaust explain explore express extreme faculty fashion feather feeling fiction fifteen fishing fitness flavour flowing foolish footing forever formula fortune forward founder freedom funeral furnish gallery general genuine gesture glimpse gradual grammar granted gravity greatly grocery halfway hanging harbour harvest heading helpful herself highway himself history holiday housing however hundred hungry husband illness imagine improve include initial inquiry insight inspire install instant intense involve jewelry journey justice kindly kingdom kitchen lacking landing laptop lasting leading leather lecture lending library lighter limited listing loading locked logging lovers machine mailing mankind maximum meaning measure meeting message million mineral minimum mission mixture monitor monthly morning mystery natural neither network nothing nuclear nursing obvious october officer opening opinion organic outside overall package painter parking partner passage passing patient pattern payment penalty pension perfect perhaps picture pioneer plastic pleased plenty popular portion poverty prayer predict premium present prevent primary printer privacy problem process produce product profile program project promise promote protect protein provide purpose pushing quality quarter quickly railway reading reality receive recover reflect refuse regular related release remains removal replace request require reserve resolve respect restore retail retired reunion revenue reverse rolling routine running sacred salary savings scheme science scoring script section secure seeking selling sending serious service session setting seventh several shallow sharing shelter shortly showing silence similar sitting skiing slowly society soldier somehow special species spoken sponsor stadium standard starting station staying steady stolen storage strange stretch strict strongly student studies subject succeed sudden suffer suggest summit support supreme surely survey suspect sustain sweater swimming symbol talking teacher telling tension theatre therapy thought thrown tonight totally tourist towards trader trading traffic trailer trainer trouble trusted tuition turning typical unable unless unlike upgrade urgent useful usually utility vacant variety various vehicle version victory viewing violent virtual visible visitor volume waiting walking warning warrant wedding weekend welcome western whether willing winning wishing without witness working worship wounded writing written`;
+const ADVWORDS=`rhythm queue awkward xylophone mississippi bookkeeper accommodate occurrence exaggerate sphinx quizzical juxtapose zigzag pneumonia psychology february necessary embarrass conscientious entrepreneur maintenance questionnaire pronunciation chrysanthemum worcestershire onomatopoeia kaleidoscope jeopardize bureaucracy acquaintance millennium rhinoceros hypothesis catastrophe synchronize unfortunately responsibility extraordinary communication approximately environment independent refrigerator thoroughly vacuum weird yacht zephyr fjord gnome quartz buzzword jazzy pizzazz blizzard frazzled fuzzy puzzle quixotic voodoo wizard zucchini mnemonic cacophony lieutenant colonel silhouette rendezvous camaraderie chandelier clairvoyant bourgeoisie hierarchy idiosyncrasy juxtaposition knowledgeable lackadaisical metamorphosis nonchalant obnoxious perseverance quintessential reminiscent surreptitious thoroughbred ubiquitous vulnerability whimsical xenophobia yesteryear zeitgeist minimum lumbar unimpeachable decked jumpy hymn mummy cedar debug brunch unbeknownst opinion lollipop gymnast unusual committee bookkeeping address success tomorrow balloon coffee succeed assess qwerty quest brrr strengths sixths twelfths rhythms lymph glyph nymph crypt gypsy psychic syzygy sycophant tyrannosaurus pterodactyl pseudonym pharaoh pharmacy phlegm physique phosphorus photosynthesis playwright plagiarism pneumatic poltergeist posthumous prerogative procrastinate psychiatrist quarantine quadrangle quagmire quandary quicksilver quicksand quibble quotient rambunctious recommend reconnaissance rehearsal resuscitate restaurant reservoir sacrilegious scissors separate sergeant sheriff skeleton sophisticated stethoscope straightforward subpoena supersede tattoo temperature tentative threshold tournament transparent tuxedo twelfth typewriter unanimous unnecessary vengeance vegetable vicinity vigilance villain vineyard visualize volunteer walrus warranty wednesday withhold woolen wrestling wristwatch yield yodel zealous zombie zucchini zigzagging abbreviation abdomen abrupt absurd abyss acquire acrobat adjacent admiration aesthetic affection aggravate algorithm alphabet ambiguous analysis anonymous antarctic apparatus appetite architecture arithmetic artificial ascertain asphalt assassin astronomy atmosphere attorney auditorium autobiography avalanche aviation backwards bankruptcy barbecue bewildered bicycle biography blasphemy boulevard breakthrough broccoli brochure buoyant bureau cafeteria calendar camouflage cappuccino cardigan cauliflower cemetery champagne changeable characteristic chauffeur chocolate cholesterol chronological cinnamon circumstance clothes colleague colossal combustion comfortable commemorate competition conference conscience consequence controversy convenience coordinate correspond courageous criticism curriculum cylinder dandelion deceive deodorant descendant desperate despicable dictionary difficulty dilemma disappear disastrous discipline dissatisfied doughnut dumbbell dysfunction eccentric ecstasy efficient eighteenth elaborate electricity embezzle emphasize encyclopedia enthusiasm equipment especially essential exasperate excellent exhilarate existence experience explanation exquisite extravagant fahrenheit fascinate flamboyant fluorescent forehead fortunate fragile frequency fulfill fundamental gauge generosity genius ghastly gladiator glamorous government gracious gratitude guarantee guerrilla guidance gymnasium handkerchief harass hemisphere heritage hilarious honorary horizon hurricane hygiene hypocrite illegible illustrate immediately imagination incredible indispensable infinite influence ingredient initiative insistent intelligence interrupt intuition invisible irrelevant irresistible jewelry judgment justification kilometer labyrinth laboratory landscape languages legitimate leisure leopard liaison library license lightning literature livelihood loneliness luxurious magnificent maneuver marathon marvelous mathematics mattress meanwhile mechanical medieval melancholy memorable mischievous miscellaneous miniature misspell molecule monotonous mortgage mountainous mysterious narrative navigation nevertheless noticeable nuisance obedience obstacle occasion occupant omission opponent opportunity oxygen paradigm parallel parliament participate particular passenger peculiar pedestrian performance permanent perspective phenomenon philosophy physician pilgrimage playground politician population possession practical precedence preference prejudice preliminary prescription presidential privilege probably professional prophecy psychology punctuation questionable rebellious receipt recognize reference regardless relevant reluctant remember repetition representative reputation resemblance resistance rhetoric ridiculous sandwich satellite schedule scientific secretary sensible shepherd significant silhouette simultaneous skeptical solution souvenir spaghetti spontaneous strategy strength subtle sufficient superintendent suspicious sympathy symptom technique telephone temperament terrible theoretical thoroughly throughout tobacco tolerance tragedy transcript transportation tremendous trustworthy unconscious unfortunate university unique upholstery vaccine valuable vegetarian velocity ventilation vertical vibrant vocabulary volcano warehouse whistle wholesome wilderness wonderful workshop yesterday zoology`;
+const WORDS=`a am an as at ax be by do go ha he hi if in is it me my no of oh on or ox so to up us we ad ah al eh em en er es id ma pa pi re ta yo
+add ads aft age ago aid ail aim air ale all and ant any ape apt arc are ark arm art ash ask ate awe axe bad bag ban bar bat bay bed bee bet bib bid big bin bit bow box boy bud bug bus but buy cab can cap car cat cop cow cry cub cup cut dad dam day den dew did die dig dim dip dog dot dry dub dud due dug ear eat eel egg ego elf elk elm end era eve eye fad fan far fat fax fed fee few fig fin fir fit fix flu fly foe fog for fox fry fun fur gag gap gas gel gem get gin god got gum gun gut guy gym had hag ham has hat hay hen her hew hex hid him hip his hit hog hop hot how hub hue hug hum hut ice icy ill imp ink inn ion ire irk its ivy jab jag jam jar jaw jay jet jig job jog jot joy jug keg ken key kid kin kit lab lad lag lap law lay lea led leg let lid lie lip lit log lot low mad man map mat may men met mid mix mob mom mud mug nag nap net new nil nip nod nor not now nun nut oak oar oat odd off oft oil old one opt orb ore our out owe owl own pad pal pan pat paw pay pea peg pen pet pie pig pin pit ply pod pop pot pro pub pun pup put rag ram ran rap rat raw ray red rib rid rig rim rip rob rod rot row rub rug rum run rut rye sad sag sap sat saw say sea see set sew she shy sin sip sir sit six ski sky sly sob sod son sow soy spa spy sub sum sun tab tag tan tap tar tax tea ten the tie tin tip toe ton too top toy try tub tug two urn use van vat vet via vow wag war was wax way web wed wet who why wig win wit woe wok won woo wow yak yam yap yes yet yew yep you zap zip zoo
+able acid aged also alfa area army away baby back ball band bank base bath bear beat been bell belt best bike bill bird blow blue boat body bold bone book born boss both bowl bulk burn bush busy cafe cake call calm came camp card care cart case cash cast cell chat chip city clap clay clip club coal coat code cold come cook cool cope copy cord core corn cost crew crop dark dash data date dawn days dead deal dear deck deep deer desk dial diet dirt dish disk does done door dose down draw drew drop drum dual duck dull dusk dust duty each earn ease east easy edge else even ever evil exit face fact fade fail fair fall fame farm fast fate fear feed feel feet fell felt file fill film find fine fire firm fish five flag flak flat fled flew flip flow folk food fool foot form fort four free from fuel full fund gaff gain game gang gate gave gear gift girl give glad glow goal goes gold golf gone good gown grab gray grew grid grim grin grip grow gulf hair half hall hand hang hard harm hash hate have head heal hear heat held hell help here hero hide high hill hint hire hold hole holy home hope horn host hour huge hung hunt hurt idea inch into iron item jack jade jail jazz join joke jump just keen keep kept kick kill kind king kiss knee knew know lack lady laid lake lamp land lane last late lawn lazy lead leaf lean left lend less lick life lift like lime line link lion list live load loan lock logo long look lord lose loss lost loud love luck lump lung mail main make male mall many mark mask mass mate math meal mean meat meet melt menu mere mile milk mind mine miss mode mood moon more most move much must myth nail name navy near neat neck need nest news nice nine node none noon nose note noun oath obey odds once only onto open oral oven over pace pack page paid pain pair pale palm park part pass past path peak pear peel peer pick pile pill pine pink pipe plan play plot plus poem poet pole poll pond pool poor pork port pose post pour pray pull pump pure push quit race rack rage rail rain rank rare rate read real rear rely rent rest rice rich ride ring rise risk road rock role roll roof room root rope rose ruin rule rush safe said sail sake sale salt same sand sang save seal seat seed seek seem seen self sell send sent ship shoe shop shot show shut sick side sigh sign silk sing sink site size skin skip slab slam slap sled slid slim slip slot slow snap snow soap soar sock soft soil sold sole some song soon sort soul soup sour span spin spot star stay stem step stir stop such suit sure swim tail take tale talk tall tank tape task team tear tell tend tent term test text than that them then they thin this thus tide tidy tied tile till time tiny tire told toll tone took tool torn tour town trap tray tree trim trip true tube tune turn twin type ugly unit upon urge used user vain vary vase vast very vest view vine visa void vote wage wait wake walk wall want warm warn wash wave weak wear week well went were west what when whom wide wife wild will wind wine wing wipe wire wise wish with wolf wood wool word wore work worm worn wrap yard yarn year yell yoga your zero zone
+asks dads fads gads gall glass gash lads lass slag slash shall shad sash salad salads flask flasks falls halls flags hajj dash dashes alas lakh jags
+pepper puppy troop poetry weep tyre otter wiper writer proper report ewer pier pore quiet query quip quite require tower power prior pretty tipper trio tire tore tort toot tote tout wept were typewriter outpour pottery property repeat retype
+about above abuse actor adapt admit adopt adult after again agent agree ahead alarm album alert alike alive allow alone along alter among angle angry apart apple apply arena argue arise armed array aside asset audio avoid award aware awful basic basis beach began begin being below bench birth black blame blank blind block blood board boost booth bound brain brand bread break brick brief bring broad brown brush build built bunch buyer cable candy carry catch cause chain chair chart chase cheap check chest chief child chose civil claim class clean clear click climb clock close cloud coach coast could count court cover craft crash cream crime cross crowd crown curve cycle daily dance death delay depth doubt draft drama dream dress drink drive early earth eight elect empty enemy enjoy enter entry equal error event every exact exist extra faith false fault field fifth fifty fight final first fixed flash fleet floor focus force forth forty forum found frame frank fresh front fruit fully funny giant given glass globe going grace grade grand grant grass great green gross group grown guard guess guest guide happy harsh heart heavy hello hence horse hotel house human ideal image index inner input issue joint judge known label large laser later laugh layer learn lease least leave legal level light limit links lives local logic loose lower lucky lunch magic major maker march match maybe mayor meant media metal might minor minus mixed model money month moral motor mount mouse mouth movie music needs never newly night noise north noted novel nurse occur ocean offer often order other ought paint panel paper party peace phase phone photo piece pilot pitch place plain plane plant plate point pound power press price pride prime print prior prize proof proud prove queen quick quiet quite radio raise range rapid ratio reach ready refer right rival river robot rough round route royal rural scale scene scope score sense serve seven shall shape share sharp sheet shelf shell shift shine shirt shock shoot short shown sight silly since sixth sixty skill sleep slide small smart smile smoke solid solve sorry sound south space spare speak speed spend spent split spoke sport staff stage stake stand start state steam steel stick still stock stone stood store storm story strip stuck study stuff style sugar suite super sweet table taken taste teach teeth thank theme there these thick thing think third those three threw throw tight times tired title today topic total touch tough tower track trade train treat trend trial tribe trick tried tries truck truly trust truth twice under union unity until upper upset urban usage usual valid value video virus visit vital voice waste watch water wheel where which while white whole whose woman women world worry worse worst worth would wound write wrong wrote yield young youth
+another answer appear around became because become before behind better beyond bottle bridge bright broken budget button camera cannot career center change charge choice choose church circle closed coffee column common course create credit custom damage danger decade decide degree design detail device dinner doctor dollar double during easily eating effect effort either empire engine enough entire escape except expect family father figure finger finish flight flower follow forest forget formal former friend future garden gather gentle global golden ground growth guitar handle happen hardly health height helped hidden holder honest impact income indeed inside island itself jacket jungle junior knight ladder larger launch lawyer leader legacy length lesson letter likely liquid listen little living lonely longer lovely making manage manner market master matter medium member memory mental method middle minute mirror mobile modern moment mother motion moving museum myself narrow nation nature nearby needed neither normal notice number object obtain offers office online option orange origin output pardon parent partly people period person picked planet player please pocket police policy potato powder prefer pretty prince prison profit proper public purple pursue rabbit random rarely rather reader really reason recent record reduce reform region relate remain remove repeat report rescue result return reveal review reward rhythm ribbon ridden rocket rubber safety salmon sample school screen search season second secret select senior series server settle shadow shared shield should signal silent silver simple single sister sketch smooth social soccer source speech spirit spread spring square stable stands stream street strike string strong student summer sunset supply surface system tablet taking talent target temple tennis thanks theory thirty though thread threat throat ticket tomato toward travel trying tunnel turned twelve twenty unique update useful valley vendor victim village violet visual volume walked wallet wander wealth weapon weekly weight window winter wisdom within wonder wooden worker worthy writer yellow
+keyboard practice language children computer friends thought through between brother example special someone weather whisper yesterday whatever wonderful beautiful together tomorrow anything dashboard flashlight alphabet`.split(/\s+/);
+const DICT=[...new Set((WORDS.join(' ')+' '+EXTRA).split(/\s+/))].filter(w=>/^[a-z]+$/.test(w));
+const ADV=[...new Set(ADVWORDS.split(/\s+/))].filter(w=>/^[a-z]+$/.test(w));
+const ALL_LETTERS='abcdefghijklmnopqrstuvwxyz'.split('');
+function advActive(){return !!opts.adv&&ALL_LETTERS.every(c=>sel.has(c))}
+
+/* ---------- keyboard layout (QWERTY) ---------- */
+const ROWS=[
+  {id:'num',name:'Number row',keys:'1234567890'.split(''),l:0},
+  {id:'top',name:'Top row',keys:'qwertyuiop'.split(''),l:.5},
+  {id:'home',name:'Home row',keys:"asdfghjkl;'".split(''),l:.75},
+  {id:'bot',name:'Bottom row',keys:'zxcvbnm,./'.split(''),l:1.25}
+];
+const FINGERS=[['Left pinky','1qaz'],['Left ring finger','2wsx'],['Left middle finger','3edc'],['Left index finger','45rtfgvb'],
+  ['Right index finger','67yuhjnm'],['Right middle finger','8ik,'],['Right ring finger','9ol.'],['Right pinky',"0p;'/"]];
+const FINGER={};FINGERS.forEach(([n,ks])=>[...ks].forEach(k=>FINGER[k]=n));
+
+/* ---------- state ---------- */
+const DEFAULT_SEL=['a','s','d','f','j','k','l',';'];
+const sel=new Set(load('sel',DEFAULT_SEL));
+const opts=Object.assign({brk:5,guide:true,weak:true,adv:false},load('opts',{}));
+function persist(){save('sel',[...sel]);save('opts',opts);save('stats',stats);save('ts',Date.now());scheduleSelf()}
+let stats=load('stats',{});            // {ch:{a:attempts,e:errors}}
+let words=[],idx=0,typed='',wordState=[],errPos=new Set();
+let recent=[];
+let started=false,lastKey=0,activeSec=0,blockSec=0,okKeys=0,allKeys=0,wordsDone=0,breakCount=0;
+let resting=false,restLeft=0,restTotal=0,restDone=false;
+
+/* ---------- keyboard UI ---------- */
+const kb=$('#kb'),btn={},rowBtn={};
+ROWS.forEach(r=>{
+  const row=document.createElement('div');row.className='krow';
+  const rb=document.createElement('button');rb.type='button';rb.className='rowbtn';rb.dataset.row=r.id;
+  rowBtn[r.id]=rb;row.appendChild(rb);
+  const keys=document.createElement('div');keys.className='keys';
+  const n=r.keys.length,left=r.l/12*100,right=(12-r.l-n)/12*100;
+  keys.style.gridTemplateColumns='repeat('+n+',minmax(0,1fr))';
+  keys.style.paddingLeft=left+'%';keys.style.paddingRight=right+'%';
+  r.keys.forEach(k=>{
+    const b=document.createElement('button');b.type='button';b.className='key';b.textContent=k;b.dataset.k=k;
+    b.setAttribute('aria-label','Key '+k);btn[k]=b;keys.appendChild(b);
+  });
+  row.appendChild(keys);kb.appendChild(row);
+});
+kb.addEventListener('click',e=>{
+  const b=e.target.closest('.key'),rb=e.target.closest('.rowbtn');
+  if(b){const k=b.dataset.k;sel.has(k)?sel.delete(k):sel.add(k);}
+  else if(rb){const r=ROWS.find(x=>x.id===rb.dataset.row);const all=r.keys.every(k=>sel.has(k));r.keys.forEach(k=>all?sel.delete(k):sel.add(k));}
+  else return;
+  (document.activeElement&&document.activeElement.blur)&&document.activeElement.blur();
+  persist();selectionChanged();
+});
+
+function paintKeys(){
+  ROWS.forEach(r=>{
+    const c=r.keys.filter(k=>sel.has(k)).length;
+    rowBtn[r.id].innerHTML='<span>'+r.name+'</span><i>'+c+'/'+r.keys.length+'</i>';
+    rowBtn[r.id].setAttribute('aria-label',r.name+', '+c+' of '+r.keys.length+' keys learned. Click to '+(c===r.keys.length?'clear':'select all'));
+    r.keys.forEach(k=>{
+      btn[k].classList.toggle('on',sel.has(k));
+      btn[k].setAttribute('aria-pressed',sel.has(k)?'true':'false');
+    });
+  });
+}
+function weakness(ch){const s=stats[ch];return s&&s.a>=4?s.e/s.a:0}
+function isWeak(ch){const s=stats[ch];return !!s&&s.a>=4&&s.e>=2&&s.e/s.a>=.12}
+function paintWeak(){
+  const list=[];
+  Object.keys(btn).forEach(k=>{
+    const s=stats[k],flag=sel.has(k)&&isWeak(k);
+    btn[k].classList.toggle('weak',flag);
+    btn[k].title=s&&s.a?'Missed '+s.e+' of '+s.a+' tries':'';
+    if(flag)list.push([k,s.e/s.a]);
+  });
+  list.sort((a,b)=>b[1]-a[1]);
+  $('#weakNote').textContent=list.length?'Needs work: '+list.slice(0,4).map(([k,w])=>k.toUpperCase()+' '+Math.round((1-w)*100)+'%').join(' \u00b7 '):'';
+}
+
+/* ---------- word generation ---------- */
+let letters=[],symbols=[],pool=[];
+function rebuildPool(){
+  letters=[...sel].filter(k=>/[a-z]/.test(k));
+  symbols=[...sel].filter(k=>!/[a-z]/.test(k));
+  const ls=new Set(letters);
+  pool=DICT.filter(w=>{for(const c of w)if(!ls.has(c))return false;return true});
+  let msg='';
+  if(!sel.size)msg='Pick at least one key to begin.';
+  else if(!letters.length)msg='Symbol and number keys only, so you’ll get short drills.';
+  else if(pool.length>=40)msg=pool.length+' real words use your letters.';
+  else if(pool.length>0)msg='Only '+pool.length+' real word'+(pool.length>1?'s':'')+' use these letters, so practice patterns are mixed in.';
+  else msg='No real words use these letters yet, so you’ll get practice patterns. Add a vowel for real words.';
+  if(advActive())msg+=' Advanced words are on ('+ADV.length+' extra).';
+  $('#poolNote').textContent=msg;paintAdv();
+}
+const rnd=()=>Math.random();
+function pickWeighted(arr,wf){
+  let t=0;const ws=arr.map(x=>{const w=wf(x);t+=w;return w});
+  let r=rnd()*t;for(let i=0;i<arr.length;i++){r-=ws[i];if(r<=0)return arr[i]}
+  return arr[arr.length-1];
+}
+const lw=c=>1+(opts.weak?20*weakness(c):0);
+const wordWeight=w=>{if(!opts.weak)return 1;let m=0;for(const c of w)m=Math.max(m,weakness(c));return 1+20*m};
+function pseudo(){
+  const L=letters,V=L.filter(c=>'aeiou'.includes(c)),C=L.filter(c=>!'aeiou'.includes(c));
+  const pc=()=>pickWeighted(C,lw),pv=()=>pickWeighted(V,lw);
+  if(V.length&&C.length){
+    const pats=['cv','vc','cvc','cvc','cvcv','vcv'];let out='';
+    const p=pats[Math.floor(rnd()*pats.length)];
+    for(const x of p)out+=x==='c'?pc():pv();
+    if(out.length<4&&rnd()<.4)out+=(rnd()<.5?pc()+pv():pc());
+    return out;
+  }
+  const len=3+Math.floor(rnd()*3);let out='';
+  for(let i=0;i<len;i++){
+    let c=pickWeighted(L,lw),g=0;
+    while(L.length>1&&out.slice(-2)===c+c&&g++<8)c=pickWeighted(L,lw);
+    out+=c;
+  }
+  return out;
+}
+function symbolToken(){
+  const all=[...letters,...symbols],len=3+Math.floor(rnd()*3);
+  for(let t=0;t<12;t++){
+    let out='';for(let i=0;i<len;i++)out+=pickWeighted(all,lw);
+    if([...out].some(c=>symbols.includes(c)))return out;
+  }
+  return symbols[0]+symbols[Math.floor(rnd()*symbols.length)]+symbols[0];
+}
+function paintAdv(){
+  const have=ALL_LETTERS.filter(c=>sel.has(c)).length,all=have===26,cb=$('#optAdv');
+  cb.disabled=!all;cb.checked=!!opts.adv&&all;
+  $('#advLabel').classList.toggle('off',!all);
+  $('#advNote').textContent=all?'Long and tricky words are mixed in.':'Unlocks when all 26 letter keys are on ('+have+'/26 now).';
+}
+function oneWord(){
+  const advOn=advActive();
+  const symFrac=symbols.length?(letters.length?.3:1):0;
+  const realFrac=pool.length?Math.min(1,.3+pool.length/45):0;
+  for(let t=0;t<6;t++){
+    let w;
+    if(rnd()<symFrac)w=symbolToken();
+    else if(advOn&&rnd()<.5)w=pickWeighted(ADV,wordWeight);
+    else if(rnd()<realFrac)w=pickWeighted(pool,wordWeight);
+    else w=pseudo();
+    if(!recent.includes(w)||t===5){recent.push(w);if(recent.length>10)recent.shift();return w}
+  }
+}
+function newBatch(){
+  idx=0;typed='';wordState=[];errPos=new Set();
+  if(!sel.size){words=[];return}
+  words=[];for(let i=0;i<18;i++)words.push(oneWord());
+  wordState=words.map(()=>0);
+}
+
+/* ---------- rendering ---------- */
+const wordsEl=$('#words');
+function esc(s){return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
+function curHTML(w){
+  let h='';
+  for(let i=0;i<w.length;i++){
+    if(i===typed.length)h+='<span class="caret"></span>';
+    if(i<typed.length)h+='<span class="c '+(typed[i]===w[i]?(errPos.has(i)?'fix':'ok'):'bad')+'">'+esc(w[i])+'</span>';
+    else h+='<span class="c">'+esc(w[i])+'</span>';
+  }
+  if(typed.length>=w.length){
+    for(let i=w.length;i<typed.length;i++)h+='<span class="c bad">'+esc(typed[i])+'</span>';
+    h+='<span class="caret"></span>';
+  }
+  return h;
+}
+function renderAll(){
+  if(!words.length){
+    wordsEl.innerHTML='<div class="empty"><h2>No keys selected</h2>Mark the keys you’ve learned on the keyboard below and practice words will appear here.</div>';
+    wordsEl.style.display='block';paintHint();return;
+  }
+  wordsEl.style.display='';
+  wordsEl.innerHTML=words.map((w,i)=>'<span class="w'+(i===idx?' cur':'')+'" data-i="'+i+'">'+(i===idx?curHTML(w):esc(w))+'</span>').join('');
+  paintHint();
+}
+function renderCurrent(){
+  const el=wordsEl.querySelector('.w.cur');if(el)el.innerHTML=curHTML(words[idx]);
+  paintHint();
+}
+let nextEl=null;
+function paintHint(){
+  if(nextEl){nextEl.classList.remove('next');nextEl=null}
+  const hint=$('#hint');
+  if(!words.length){hint.textContent='';return}
+  if(!opts.guide){hint.textContent=started?'':'Start typing. The clock begins with your first key.';return}
+  const w=words[idx];
+  const prefixOk=w.startsWith(typed.slice(0,w.length))&&typed.length<=w.length;
+  if(!prefixOk&&typed.length>0){hint.innerHTML='<strong>Backspace</strong> to fix the mistake';return}
+  const ch=typed.length>=w.length?' ':w[typed.length];
+  if(ch===' '){hint.innerHTML='Next: <strong>Space</strong> (either thumb)';return}
+  if(btn[ch]){btn[ch].classList.add('next');nextEl=btn[ch]}
+  hint.innerHTML='Next: <strong>'+esc(ch.toUpperCase())+'</strong> with your '+(FINGER[ch]||'finger').toLowerCase();
+}
+function flash(ch,bad){
+  const b=btn[ch];if(!b)return;
+  b.classList.add(bad?'oops':'press');
+  setTimeout(()=>b.classList.remove('press','oops'),130);
+}
+
+/* ---------- typing ---------- */
+function note(ch,ok){
+  if(!ch)return;
+  const s=stats[ch]||(stats[ch]={a:0,e:0});
+  s.a++;if(!ok)s.e++;
+  if(s.a>60){s.a=Math.round(s.a/2);s.e=Math.round(s.e/2)}
+}
+function typeChar(c){
+  const w=words[idx];
+  if(typed.length>=w.length+3)return;
+  allKeys++;
+  const exp=w[typed.length];
+  const ok=exp===c;
+  const clean=w.startsWith(typed);
+  if(ok)okKeys++;else errPos.add(typed.length);
+  if(exp!==undefined&&clean)note(exp,ok);
+  flash(c,!ok);
+  typed+=c;
+  renderCurrent();paintWeak();paintStats();
+}
+function commitWord(){
+  if(!typed.length)return;
+  const w=words[idx],ok=typed===w;
+  allKeys++;if(ok){okKeys++;wordsDone++}
+  wordState[idx]=ok?1:2;
+  const el=wordsEl.querySelector('.w.cur');
+  if(el){el.className='w '+(ok?'done':'miss');el.textContent=w}
+  idx++;typed='';errPos=new Set();
+  persist();paintWeak();
+  if(idx>=words.length){newBatch();renderAll()}
+  else{const n=wordsEl.querySelector('.w[data-i="'+idx+'"]');if(n){n.classList.add('cur');n.innerHTML=curHTML(words[idx])}paintHint()}
+  paintStats();
+}
+function onKey(e){
+  if(resting){
+    if(e.key==='Enter'&&restDone){e.preventDefault();endRest()}
+    return;
+  }
+  if(e.ctrlKey||e.metaKey||e.altKey)return;
+  const t=e.target;
+  if(t&&t.tagName==='SELECT')return;
+  if(!words.length)return;
+  if(e.key==='Backspace'){
+    e.preventDefault();
+    if(typed.length){typed=typed.slice(0,-1);renderCurrent()}
+    return;
+  }
+  if(e.key.length!==1)return;
+  e.preventDefault();
+  if(!started){started=true}
+  lastKey=Date.now();
+  if(e.key===' ')commitWord();
+  else typeChar(e.key.toLowerCase());
+}
+document.addEventListener('keydown',onKey,true);
+document.addEventListener('keyup',e=>{if(!resting&&e.key===' '&&(!e.target||e.target.tagName!=='SELECT'))e.preventDefault()},true);
+
+/* ---------- stats + rests ---------- */
+const fmt=s=>Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+function paintStats(){
+  const wpm=activeSec>=4?Math.round(okKeys/5/(activeSec/60)):0;
+  $('#sWpm').textContent=wpm;
+  $('#sAcc').textContent=(allKeys?Math.round(okKeys/allKeys*100):100)+'%';
+  $('#sWords').textContent=wordsDone;
+  $('#sRest').textContent=fmt(Math.max(0,opts.brk*60-blockSec));
+}
+const STEPS_SHORT=['Shake both hands out loosely for 10 seconds.','Spread your fingers wide, hold for 5 seconds, relax. Do it three times.','Roll your wrists slowly, five circles each way.'];
+const STEPS_LONG=['Stand up and walk around for a minute.','Look at something about 20 feet away for 20 seconds.','Gently pull each hand back with the other, palm out, 15 seconds per side.','Roll your shoulders back five times and let your arms hang.','Drink some water.'];
+function startRest(){
+  resting=true;restDone=false;breakCount++;
+  const long=breakCount%(opts.brk>=10?2:4)===0;
+  restTotal=restLeft=long?180:30;
+  $('#restKind').textContent=long?'Long break':'Short rest';
+  $('#restTitle').textContent=long?'Step away for a few minutes':'Hands off the keys';
+  $('#restSteps').innerHTML=(long?STEPS_LONG:STEPS_SHORT).map(s=>'<li>'+s+'</li>').join('');
+  $('#restGo').disabled=true;$('#restSkip').hidden=false;
+  $('#rest').hidden=false;paintRest();
+}
+function paintRest(){
+  $('#restTime').textContent=fmt(Math.max(0,restLeft));
+  $('#ringArc').style.strokeDashoffset=(326.7*(1-Math.max(0,restLeft)/restTotal)).toFixed(1);
+  if(restLeft<=0&&!restDone){
+    restDone=true;$('#restGo').disabled=false;$('#restSkip').hidden=true;
+    $('#restKind').textContent='Rest complete';$('#restTitle').textContent='Ready when you are';
+    $('#restGo').focus();
+  }
+}
+function endRest(){
+  resting=false;restDone=false;blockSec=0;lastKey=0;
+  $('#rest').hidden=true;
+  if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();
+  paintStats();
+}
+$('#restGo').addEventListener('click',()=>{if(restDone)endRest()});
+$('#restSkip').addEventListener('click',endRest);
+setInterval(()=>{
+  if(resting){restLeft--;paintRest();return}
+  if(!started)return;
+  if(Date.now()-lastKey<8000){activeSec++;blockSec++}
+  if(blockSec>=opts.brk*60){startRest();return}
+  paintStats();
+},1000);
+
+/* ---------- options ---------- */
+$('#optBreak').value=String(opts.brk);
+$('#optGuide').checked=opts.guide;$('#optWeak').checked=opts.weak;
+function paintBreakNote(){
+  const every=opts.brk>=10?'second':'fourth';
+  $('#breakNote').textContent='Rests only count time you\u2019re actually typing. A 30 second rest comes after each block, and a 3 minute break after every '+every+' one.';
+}
+function optChange(){
+  const prev=advActive();
+  opts.brk=+$('#optBreak').value;opts.guide=$('#optGuide').checked;opts.weak=$('#optWeak').checked;
+  if(!$('#optAdv').disabled)opts.adv=$('#optAdv').checked;
+  persist();paintBreakNote();paintStats();paintHint();
+  if(advActive()!==prev){rebuildPool();newBatch();renderAll()}
+  if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();
+}
+['#optBreak','#optGuide','#optWeak','#optAdv'].forEach(s=>$(s).addEventListener('change',optChange));
+$('#resetStats').addEventListener('click',()=>{
+  stats={};persist();
+  activeSec=blockSec=okKeys=allKeys=wordsDone=0;started=false;
+  paintWeak();paintStats();paintHint();
+  if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();
+});
+
+/* ---------- saving into this file ---------- */
+const hasFSA=!!window.showOpenFilePicker;
+let fh=null,selfTimer=null,pending=false;
+const embedded=(function(){try{return JSON.parse($('#keyedin-data').textContent)}catch(e){return null}})();
+function snapshot(){return {app:'Keyed In',version:1,savedAt:new Date().toISOString(),ts:Date.now(),sel:[...sel],opts:opts,stats:stats}}
+function validData(d){return !!d&&typeof d==='object'&&Array.isArray(d.sel)&&d.stats&&typeof d.stats==='object'}
+function setStatus(t){$('#dataStatus').textContent=t}
+function clock(){return new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}
+function applyData(d){
+  sel.clear();d.sel.filter(k=>typeof k==='string'&&btn[k]).forEach(k=>sel.add(k));
+  if(d.opts&&typeof d.opts==='object')Object.assign(opts,d.opts);
+  if(![3,5,8,10].includes(opts.brk))opts.brk=5;
+  stats=d.stats;
+  $('#optBreak').value=String(opts.brk);$('#optGuide').checked=!!opts.guide;$('#optWeak').checked=!!opts.weak;
+  save('sel',[...sel]);save('opts',opts);save('stats',stats);save('ts',d.ts||Date.now());
+  paintBreakNote();paintStats();selectionChanged();
+}
+const BLOCK=/(<script type="application\/json" id="keyedin-data">)[\s\S]*?(<\/script>)/;
+async function writeSelf(){
+  if(!fh||pending)return;
+  try{
+    const txt=await (await fh.getFile()).text();
+    if(!BLOCK.test(txt))throw new Error('not Keyed In');
+    const json=JSON.stringify(snapshot()).replace(/</g,'\\u003c');
+    const w=await fh.createWritable();
+    await w.write(txt.replace(BLOCK,(m,a,b)=>a+json+b));
+    await w.close();
+    setStatus('Saved into '+fh.name+' at '+clock()+'.');
+  }catch(e){setStatus('Could not write to the file. Click Save into this file to try again.')}
+}
+function scheduleSelf(){if(!fh||pending)return;clearTimeout(selfTimer);selfTimer=setTimeout(writeSelf,1500)}
+function idb(){return new Promise((res,rej)=>{const r=indexedDB.open('keyedin',1);r.onupgradeneeded=()=>r.result.createObjectStore('h');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+async function idbGet(k){const d=await idb();return new Promise((res,rej)=>{const q=d.transaction('h').objectStore('h').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)})}
+async function idbSet(k,v){const d=await idb();return new Promise((res,rej)=>{const q=d.transaction('h','readwrite').objectStore('h').put(v,k);q.onsuccess=()=>res();q.onerror=()=>rej(q.error)})}
+function blurActive(){if(document.activeElement&&document.activeElement.blur)document.activeElement.blur()}
+$('#selfSave').addEventListener('click',async()=>{
+  blurActive();
+  try{
+    const [h]=await window.showOpenFilePicker({types:[{description:'Keyed In (.html)',accept:{'text/html':['.html','.htm']}}]});
+    const txt=await (await h.getFile()).text();
+    if(!BLOCK.test(txt)){setStatus('That file isn’t Keyed In. Pick the HTML file you’re using now.');return}
+    if(await h.requestPermission({mode:'readwrite'})!=='granted'){setStatus('Permission was not granted, so nothing was saved to the file.');return}
+    fh=h;pending=false;$('#dataBanner').hidden=true;
+    try{await idbSet('file',h)}catch(e){}
+    await writeSelf();
+  }catch(e){if(e&&e.name!=='AbortError')setStatus('Could not open that file.')}
+});
+$('#reconnect').addEventListener('click',async()=>{
+  blurActive();
+  try{
+    if(await fh.requestPermission({mode:'readwrite'})==='granted'){pending=false;$('#dataBanner').hidden=true;await writeSelf()}
+  }catch(e){}
+});
+$('#expBtn').addEventListener('click',()=>{
+  blurActive();
+  const b=new Blob([JSON.stringify(snapshot(),null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='Keyed_in_data.json';
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+  setStatus('Exported Keyed_in_data.json.');
+});
+$('#impBtn').addEventListener('click',()=>{blurActive();$('#impIn').click()});
+$('#impIn').addEventListener('change',e=>{
+  const f=e.target.files&&e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{try{const d=JSON.parse(r.result);if(!validData(d))throw 0;applyData(d);persist();setStatus('Backup imported.')}catch(x){setStatus('That file isn’t a Keyed In backup.')}};
+  r.readAsText(f);e.target.value='';
+});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&fh&&!pending){clearTimeout(selfTimer);writeSelf()}});
+async function initData(){
+  try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
+  if(validData(embedded)&&(embedded.ts||0)>load('ts',0))applyData(embedded);
+  if(!hasFSA){setStatus('Saved automatically in this browser.');return}
+  $('#selfSave').hidden=false;
+  try{fh=await idbGet('file')||null}catch(e){fh=null}
+  if(!fh){setStatus('Saved automatically in this browser.');return}
+  let p='prompt';try{p=await fh.queryPermission({mode:'readwrite'})}catch(e){}
+  if(p==='granted'){
+    setStatus('Saving into '+fh.name+'.');
+    if(!validData(embedded)||load('ts',0)>(embedded.ts||0))writeSelf();
+  }else{pending=true;$('#dataBanner').hidden=false;setStatus('Progress loaded. Reconnect to keep saving into the file.')}
+}
+
+/* ---------- init ---------- */
+function selectionChanged(){paintKeys();paintWeak();rebuildPool();newBatch();renderAll();}
+selectionChanged();paintBreakNote();paintStats();initData();
+})();
+</script>
+
+</body>
+</html>
